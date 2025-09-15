@@ -3,8 +3,6 @@
 ## A manifesto for a better loving world
 ❤️ draft 0.1 ❤️
 
-![Monopoly man caught in a jar by Alison Jackson][image1]
-
 ## Introduction…
 
 Following several discussions and back-and-forths over time with many different people. It was Julia in a coffee shop in Amsterdam central train station who suggested a manifesto she was planning to write about online dating.
