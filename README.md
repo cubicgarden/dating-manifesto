@@ -36,3 +36,7 @@ We have an outline of...
 * Clear rules over GenAI use and collection of data
 * Attractiveness is not global
 * End the Privatisation of Intimacy
+
+---
+
+See the draft manifesto here in [markdown](https://github.com/cubicgarden/dating-manifesto/blob/main/Online%20Dating_%20A%20manifesto%20for%20a%20better%20loving%20world.md). 
