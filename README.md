@@ -17,7 +17,8 @@ I found Julia’s thought process incredible and I wrote a book about my experie
 
 This get's right into the crux of the problem of online dating and its wider effects on personal wellbeing, relationships and society as a whole.
 
----
+
+## The manifesto outline
 
 Leaning on the [W3C's ethical web](https://www.w3.org/TR/ethical-web-principles/) and [MyData priciples](https://mydata.org/about/purposes-principles/)  
 
@@ -37,6 +38,7 @@ We have an outline of...
 * Attractiveness is not global
 * End the Privatisation of Intimacy
 
----
+
+## Contribute to the manifesto
 
 See the draft manifesto here in [markdown](https://github.com/cubicgarden/dating-manifesto/blob/main/Online%20Dating_%20A%20manifesto%20for%20a%20better%20loving%20world.md). 
