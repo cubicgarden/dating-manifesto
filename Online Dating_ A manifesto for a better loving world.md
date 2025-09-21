@@ -17,21 +17,21 @@ Daters must have the absolute right to fully understand how the data they provid
 
 Daters must retain ownership of their profile and all associated personal data, both explicit and implicit. Data portability, encompassing the ability to transfer (rather than duplicate) this data to alternative platforms and services, must be facilitated. There should be no penalties, financial or otherwise, should be imposed upon users for exporting or importing their personal data via the portability function. 
 
-3. ###$ **Dating system must not prescribe a singular way to date and match** 
+3. #### **Dating system must not prescribe a singular way to date and match** 
 
 Adopting a re-wilding paradigm within dating allows daters to engage in interactions that prioritise mutual benefit over the commercial interests of dating platforms. This approach offers significant advantages to diverse communities, including those with disabilities and specific conditions, by fostering authentic connections rather than subjecting them to restrictive algorithmic filtering.
 
 ### Portability: Access and re-use
 
-4. ###$ **Dark patterns, gamification, ludic loops and [enshittifcation](https://en.wikipedia.org/wiki/Enshittification) should not be used in dating services**
+4. #### **Dark patterns, gamification, ludic loops and [enshittifcation](https://en.wikipedia.org/wiki/Enshittification) should not be used in dating services**
 
 All of the above and techniques described in addicted by design, must not be used to trick or convince people at a critical point of vulnerability in life. The business models must be legible and clear for all to understand and have agency around. 
 
-5. ###$ **No more grass is greener and tempting tricks**
+5. #### **No more grass is greener and tempting tricks**
 
 Services must not contact/lure people back via emails, messages, tempting notifications, etc. With a lack of important information tempting daters to click through. Unsubscribe, suspend and pauses must be respected.
 
-6. ###$ **No more hiring non-genuine daters to fill your dating service** 
+6. #### **No more hiring non-genuine daters to fill your dating service** 
 
 The dirty little secret of dating services filling the service with paid-for people pretending to be guanine daters. Is completely unacceptable and dating service must not use these techniques to fill the site. This would include non-human entities such as bots and AI unless made clear and transparent to the dater..  
 
