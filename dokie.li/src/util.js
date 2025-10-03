@@ -1,0 +1,574 @@
+import DOMPurify from 'dompurify';
+import Config from './config.js'
+import { svgToDataURI } from './uri.js';
+import { Icon } from './ui/icons.js'
+
+function uniqueArray(a) {
+  return Array.from(new Set(a));
+}
+
+function getDateTimeISO() {
+  var date = new Date();
+  return date.toISOString();
+}
+
+function getDateTimeISOFromMDY(s) {
+  let date = new Date(s);
+
+  let year = date.getFullYear();
+  let month = String(date.getMonth() + 1).padStart(2, '0');
+  let day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function convertToISO8601Duration(timeValue) {
+  const [hours, minutes, seconds] = timeValue.split(':').map(Number);
+  const formattedDuration = `PT${hours}H${minutes}M${seconds}S`;
+  return formattedDuration;
+}
+
+function getDateTimeISOFromDate(dateHeader) {
+  if (!dateHeader) {
+    return;
+  }
+
+  return new Date(dateHeader).toISOString();
+}
+
+function debounce(func, delay) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      func(...args);
+    }, delay);
+  };
+}
+
+function removeChildren(node) {
+  while (node.firstChild) {
+    node.removeChild(node.firstChild);
+  }
+}
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function escapeRDFLiteral(str) {
+  return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function fragmentFromString(strHTML) {
+  return document.createRange().createContextualFragment(domSanitize(strHTML));
+}
+
+function stringFromFragment(fragment) {
+  const container = document.createElement('div');
+  container.appendChild(fragment.cloneNode(true));
+
+  // return container.firstChild?.outerHTML || '';
+
+  return container.innerHTML;
+}
+
+function generateUUID(inputString) {
+  // Simple FNV-1a hash function to generate a deterministic 32-bit integer hash for each part
+  function fnv1aHash(str, seed = 2166136261) {
+    let hash = seed;
+    for (let i = 0; i < str.length; i++) {
+      hash ^= str.charCodeAt(i);
+      hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    return hash >>> 0; // Ensure unsigned 32-bit integer
+  }
+
+  if (inputString) {
+    // Generate deterministic UUID using FNV-1a hash
+    const d0 = fnv1aHash(inputString, 2166136261);
+    const d1 = fnv1aHash(inputString, 2166136261 ^ 0xdeadbeef);
+    const d2 = fnv1aHash(inputString, 2166136261 ^ 0xcafebabe);
+    const d3 = fnv1aHash(inputString, 2166136261 ^ 0x8badf00d);
+
+    const hex = (
+      d0.toString(16).padStart(8, '0') +
+      d1.toString(16).padStart(8, '0') +
+      d2.toString(16).padStart(8, '0') +
+      d3.toString(16).padStart(8, '0')
+    );
+
+    // Ensure UUID version (4) and variant (8, 9, a, or b)
+    let uuid = hex.substring(0, 8) + '-' +
+               hex.substring(8, 12) + '-' +
+               '4' + hex.substring(13, 16) + '-' + // Set version to 4
+               ((parseInt(hex[16], 16) & 0x3f) | 0x80).toString(16) + // Set variant to 10xxxxxx
+               hex.substring(17, 20) + '-' +
+               hex.substring(20, 32);
+
+    // Optionally, ensure the UUID starts with 'a' if needed
+    uuid = 'a' + uuid.slice(1);
+
+    return uuid;
+  }
+  else {
+    const uuid = crypto.randomUUID();
+    const array = new Uint8Array(1);
+    crypto.getRandomValues(array);
+    const randomLetter = String.fromCharCode(97 + (array[0] % 6)); // Start with a-f
+    return randomLetter + uuid.slice(1);
+  }
+}
+
+function generateId(prefix, string, suffix) {
+  prefix = prefix || "";
+
+  if (string) {
+    string = string.trim();
+    string = string.replace(/\W/g, "-");
+    var s1 = string.substr(0, 1);
+    string =
+      prefix === "" && s1 == parseInt(s1) ? "x-" + string : prefix + string;
+    return document.getElementById(string)
+      ? string + "-" + (suffix || generateUUID())
+      : string;
+  } else {
+    return generateUUID();
+  }
+}
+
+function generateAttributeId(prefix, string, suffix) {
+  const id = generateId(prefix, string, suffix);
+  if (/^\d/.test(id)) {
+    return generateAttributeId(prefix, string, suffix);
+  }
+  return id;
+}
+
+function getFormValues(form) {
+  const formData = new FormData(form);
+
+  const formValues = Object.fromEntries(
+    [...formData.entries()].map(([key, value]) => [key, typeof value === "string" ? domSanitize(value.trim()) : value])
+  );
+
+// console.log(formValues);
+  return formValues;
+}
+
+//SRI hash that's browser safe
+async function getHash(message, algo = 'SHA-512') {
+  if (!['SHA-256', 'SHA-384', 'SHA-512'].includes(algo)) {
+    throw new Error('Unsupported SRI algorithm');
+  }
+
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = await crypto.subtle.digest(algo, data);
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
+
+  return `${algo.replace('-', '').toLowerCase()}-${base64}`;
+}
+
+function hashCode(s) {
+  var hash = 0;
+  if (s.length == 0) return hash;
+  for (var i = 0; i < s.length; i++) {
+    var char = s.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return hash;
+}
+
+function getRandomIndex(length) {
+  const array = new Uint32Array(1);
+  crypto.getRandomValues(array);
+  return array[0] % length;
+}
+
+function htmlEncode(str, options = { mode: 'text', attributeName: null }) {
+  str = String(str).trim();
+
+  if (options.mode === 'uri') {
+    const isMulti = options.attributeName && Config.DOMNormalisation.multiTermAttributes.includes(options.attributeName);
+    if (isMulti) {
+      return str.split(/[\t\n\r ]+/).map(term => encodeUriTerm(term)).join(' ');
+    } else {
+      return encodeUriTerm(str);
+    }
+  }
+
+  if (options.mode === 'attribute') {
+    return str.replace(/([&<>"'])/g, (match, p1, offset, fullStr) => {
+      if (p1 === '&') {
+        const semicolonIndex = fullStr.indexOf(';', offset);
+        if (semicolonIndex > -1) {
+          const entity = fullStr.slice(offset, semicolonIndex + 1);
+          if (/^&(?:[a-zA-Z][a-zA-Z0-9]+|#\d+|#x[0-9a-fA-F]+);$/.test(entity)) {
+            return '&';
+          }
+        }
+      }
+      switch (p1) {
+        case '&': return '&amp;';
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '"': return '&quot;';
+        case "'": return '&#39;';
+        default: return p1;
+      }
+    });
+  }
+
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+
+function encodeUriTerm(term) {
+  return term.replace(/%[0-9A-Fa-f]{2}|&|[^A-Za-z0-9\-._~:/?#\[\]@!$'()*+,;=%]/g, match => {
+    if (match === '&') return '&amp;';
+    if (/^%[0-9A-Fa-f]{2}$/.test(match)) return match;
+    switch (match) {
+      case ' ': return '%20';
+      case "'": return '%27';
+      case '"': return '%22';
+      case '<': return '%3C';
+      case '>': return '%3E';
+      default: return '%' + match.charCodeAt(0).toString(16).toUpperCase();
+    }
+  });
+}
+
+function fixDoubleEscapedEntities(string) {
+  return string.replace(/&amp;(lt|gt|apos|quot|amp);/g, "&$1;")
+}
+
+function fixBrokenHTML(html) {
+//  var pattern = new RegExp('<(' + Config.DOMNormalisation.voidElements.join('|') + ')([^>]*)></\\1>|<(' + Config.DOMNormalisation.voidElements.join('|') + ')([^>]*)/>', 'g');
+
+//Works
+// var pattern = new RegExp('<(' + Config.DOMNormalisation.voidElements.join('|') + ')([^<>]*?)?><\/\\1>', 'g');
+
+  var tagList = Config.DOMNormalisation.voidElements.concat(Config.DOMNormalisation.selfClosing);
+  var pattern = new RegExp('<(' + tagList.join('|') + ')([^<>]*?)?><\/\\1>', 'g');
+
+  var fixedHtml = html.replace(pattern, '<$1$2 />');
+
+  return fixedHtml;
+}
+
+function removeXmlns(htmlString, namespace = 'http://www.w3.org/1999/xhtml') {
+  const safeNamespace = escapeRegExp(namespace);
+  const xmlnsRegex = new RegExp(`\\sxmlns=(["'])${safeNamespace}\\1`, 'g');
+  return htmlString.replace(xmlnsRegex, '');
+}
+
+function domSanitize(strHTML, options = {}) {
+  // console.log("DOMPurify in:", strHTML);
+
+  DOMPurify.addHook('uponSanitizeElement', function(node, data) {
+    if (node.nodeName.toLowerCase() === 'script') {
+      const src = node.getAttribute('src');
+      if (!Config.DOMNormalisation.allowedScriptSrcs.includes(src)) {
+        node.remove();
+      }
+    }
+  });
+
+  DOMPurify.addHook('uponSanitizeAttribute', function(node, data) {
+    const attrName = data.attrName;
+    const attrValue = data.attrValue?.trim().toLowerCase();
+
+    if (['href', 'src', 'data', 'xlink:href'].includes(attrName)) {
+      const lowerValue = attrValue.toLowerCase();
+
+      if (lowerValue.startsWith('javascript:') || lowerValue.startsWith('vbscript:')) {
+        data.keepAttr = false;
+        return;
+      }
+
+      if (lowerValue.startsWith('data:')) {
+        const mimeMatch = lowerValue.match(/^data:([^;,]+)[;,]/);
+        const mimeType = mimeMatch?.[1];
+
+        if (!mimeType || !Config.DOMNormalisation.allowedDataMimeTypes.includes(mimeType)) {
+          data.keepAttr = false;
+          return;
+        }
+
+        if (['image/svg+xml'].includes(mimeType)) {
+          const sanitizedUrl = sanitizeDataUrl(attrValue);
+          if (sanitizedUrl) {
+            data.attrValue = sanitizedUrl;
+          } else {
+            data.keepAttr = false;
+          }
+        }
+      }
+
+      //TODO blob:
+      // if (attrValue.startsWith('blob:')) {
+      //   const trustedBlobSources = [
+      //     'blob:https://dokie.li',
+
+      //   ];
+      //   const originMatch = attrValue.match(/^blob:(https?:\/\/[^\/]+)/);
+      //   if (!originMatch || !trustedBlobSources.includes(originMatch[0])) {
+      //     data.keepAttr = false;
+      //     return;
+      //   }
+      // }
+    }
+  });
+
+  const cleanHTML = DOMPurify.sanitize(strHTML, {
+    ALLOW_UNKNOWN_PROTOCOLS: options.ALLOW_UNKNOWN_PROTOCOLS !== false,
+    ADD_TAGS: ['script'],
+    ADD_ATTR: [...Config.DOMNormalisation.rdfaAttributes, 'alttext', 'xml:lang', `xmlns:ev`, 'target'],
+    ...options
+  });
+
+  // console.log("DOMPurify out:", cleanHTML);
+  return cleanHTML;
+}
+
+function sanitizeDataUrl(dataUrl) {
+  const payload = extractDataPayload(dataUrl);
+  if (!payload) return null;
+
+  const { mimeType, decodedContent } = payload;
+
+  if (mimeType === 'text/html' || mimeType === 'image/svg+xml') {
+    const cleanContent = domSanitize(decodedContent);
+    const reEncoded = btoa(cleanContent);
+    return `data:${mimeType};base64,${reEncoded}`;
+  }
+
+  return dataUrl;
+}
+
+function extractDataPayload(dataUrl) {
+  const match = dataUrl.match(/^data:([^;,]+);base64,(.*)$/);
+  if (!match) return null;
+
+  const mimeType = match[1];
+  const base64Content = match[2];
+  const decodedContent = atob(base64Content);
+
+  return { mimeType, decodedContent };
+}
+
+function sanitizeObject(input, options = {}) {
+  if (typeof input !== 'object' || input === null) return input;
+
+  for (const key in input) {
+    if (!Object.hasOwn(input, key)) continue;
+
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      delete input[key];
+      continue;
+    }
+
+    const value = input[key];
+
+    if (typeof value === 'string') {
+      input[key] = domSanitize(value);
+      if (options.htmlEncode) {
+        input[key] = htmlEncode(input[key]);
+      }
+    }
+    else if (Array.isArray(value)) {
+      input[key] = value.map(item =>
+        typeof item === 'object' && item !== null ? sanitizeObject(item, options) : item
+      );
+    }
+    else if (typeof value === 'object' && value !== null) {
+      input[key] = sanitizeObject(value, options);
+    }
+  }
+
+  return input;
+}
+
+
+function sortToLower(array, key) {
+  return array.sort(function (a, b) {
+    if (key) {
+      a = a[key];
+      b = b[key];
+    }
+    return a.toLowerCase().localeCompare(b.toLowerCase());
+  });
+}
+
+function kebabToCamel(str) {
+  return str.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
+}
+
+function isReDoSVulnerable(regex) {
+  const regexStr = regex.toString();
+
+  const vulnerablePatterns = [
+    /(\*|\+|\{.*\})\s?\1/,  
+    /([a-zA-Z0-9])\1{2,}/,  
+    /.*a.*b.*c.*d.*e.*/  
+  ];
+
+  for (let pattern of vulnerablePatterns) {
+    if (pattern.test(regexStr)) {
+      return true;
+    }
+  }
+
+  return false; 
+}
+
+
+
+function matchAllIndex(string, regexp) {
+  // const matches = Array.from(string.matchAll(regexp));
+  // return matches.map(match => ({ match: match[0], index: match.index }));
+
+  const matches = [];
+
+  if (!regexp.global) {
+    const globalRegexp = new RegExp(regexp.source, `${regexp.flags}g`);
+    regexp = globalRegexp;
+  }
+
+  // if (isReDoSVulnerable(regexp)) {
+  //   throw new Error('Regular expression is potentially vulnerable to ReDoS attack');
+  // }
+  
+  for (const match of string.matchAll(regexp)) {
+    const arr = [...match]; // Convert the match to an array
+    arr.index = match.index; // Add the index of the match
+    arr.input = match.input; // Add the original input string
+    matches.push(arr);
+  }
+  
+  return matches.length ? matches : null;
+}
+
+function isValidISBN (str) {
+  const regex = /^(?=(?:[^0-9]*[0-9]){10}(?:(?:[^0-9]*[0-9]){3})?$)[\d-]+$/;
+  const pattern = new RegExp(regex);
+  return pattern.test(str);
+}
+
+function findPreviousDateTime(times, checkTime) {
+  const sortedTimes = uniqueArray(times).sort().reverse();
+
+  let previousDateTime = null;
+  for(let time of sortedTimes) {
+    if (time <= checkTime) {
+      previousDateTime = time;
+      break;
+    }
+  }
+
+  return previousDateTime;
+}
+
+//TODO: Check browser support for Temporal.Duration, in particular `PT`, e.g., PT17S
+function parseISODuration(duration) {
+  if (!/^P(?:\d+[YMD])*(?:T(?:\d+[HMS])*)?$/.test(duration)) {
+    throw new Error('Invalid ISO 8601 duration format');
+  }
+  const regex = /P(?:([\d.]+)Y)?(?:([\d.]+)M)?(?:([\d.]+)D)?(?:T(?:([\d.]+)H)?(?:([\d.]+)M)?(?:([\d.]+)S)?)?/;
+  const matches = duration.match(regex);
+
+  const [, years, months, days, hours, minutes, seconds] = matches.map(x => x ? parseFloat(x) : 0);
+
+  const parts = [];
+  if (years) parts.push(`${years}y`);
+  if (months) parts.push(`${months}m`);
+  if (days) parts.push(`${days}d`);
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  if (seconds) parts.push(`${seconds}s`);
+
+  return parts.length ? parts.join(', ') : '0s';
+}
+
+function tranformIconstoCSS(icons) {
+  let cssOutput = '';
+
+  Object.entries(icons).forEach(([key, svg]) => {
+    cssOutput += `i${key} { background-image: url("${svgToDataURI(svg)}"); }\n`;
+  });
+
+  return cssOutput;
+}
+
+function getIconsFromCurrentDocument() {
+  var usedIcons = Array.from(document.querySelectorAll('i[class*="fa-"]'))
+    .flatMap(el => Array.from(el.classList))
+    .filter(cls => cls.startsWith('fa-'));
+
+  var uniqueClasses = [...new Set(usedIcons)];
+
+  var filteredEntries = Object.entries(Icon).filter(([cls]) =>
+    uniqueClasses.some(usedCls => cls.includes(usedCls))
+  );
+
+  var sortedEntries = filteredEntries.sort(([a], [b]) => a.localeCompare(b));
+
+  var newIcons = Object.fromEntries(sortedEntries);
+
+  return newIcons;
+}
+
+function isOnline() {
+  return navigator.onLine;
+}
+
+const isPlainObject = (object) => {
+  return typeof object === 'object' && !Array.isArray(object) && object !== null;
+}
+
+export {
+  debounce,
+  uniqueArray,
+  getDateTimeISO,
+  getDateTimeISOFromMDY,
+  convertToISO8601Duration,
+  getDateTimeISOFromDate,
+  removeChildren,
+  escapeRegExp,
+  escapeRDFLiteral,
+  sleep,
+  fragmentFromString,
+  stringFromFragment,
+  generateUUID,
+  generateAttributeId,
+  generateId,
+  getHash,
+  getRandomIndex,
+  hashCode,
+  sortToLower,
+  matchAllIndex,
+  isValidISBN,
+  findPreviousDateTime,
+  getFormValues,
+  kebabToCamel,
+  parseISODuration,
+  htmlEncode,
+  fixDoubleEscapedEntities,
+  fixBrokenHTML,
+  removeXmlns,
+  domSanitize,
+  sanitizeObject,
+  tranformIconstoCSS,
+  getIconsFromCurrentDocument,
+  isOnline,
+  isPlainObject
+};
