@@ -41,4 +41,5 @@ We have an outline of...
 
 ## Contribute to the manifesto
 
-See the draft manifesto here in [markdown](https://github.com/cubicgarden/dating-manifesto/blob/main/Online%20Dating_%20A%20manifesto%20for%20a%20better%20loving%20world.md). 
+* Edit the draft manifesto here using [annotiontions](https://cubicgarden.github.io/dating-manifesto/dokie.li/).
+* Review the draft manifesto here in [markdown](https://github.com/cubicgarden/dating-manifesto/blob/main/Online%20Dating_%20A%20manifesto%20for%20a%20better%20loving%20world.md). 
